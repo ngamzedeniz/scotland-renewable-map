@@ -39,50 +39,47 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.8.0/proj4.js"></script>
 
 <script>
-// 📌 OSGB36 to WGS84 tanımı
-proj4.defs("OSGB36", "+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +datum=OSGB36 +units=m +no_defs");
+// OSGB36 -> WGS84
+proj4.defs("OSGB36","+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +datum=OSGB36 +units=m +no_defs");
 
-// 🌍 Harita oluştur
+// Harita oluştur
 const map = L.map('map').setView([56, -3.5], 6);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors'
+  attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
 
 const markers = L.markerClusterGroup();
+
+// CSV URL
 const csvUrl = "https://heatmap.data.gov.scot/energy-supply-points.csv";
+let allData = [];
 
-let allData = []; // CSV verisini burada saklayacağız
-
-// 🎨 Marker ikonlarını oluştur (renk + boyut)
+// Marker icon oluştur
 function createCustomIcon(status, sizeCategory) {
-  let color;
-  switch (status) {
-    case 'Operational': color = 'green'; break;
-    case 'In development': color = 'orange'; break;
-    case 'Decommissioned': color = 'gray'; break;
-    default: color = 'blue';
-  }
+  let color = 'blue';
+  if(status?.toLowerCase().includes('operational')) color='green';
+  else if(status?.toLowerCase().includes('development')) color='orange';
+  else if(status?.toLowerCase().includes('decommissioned')) color='gray';
 
-  let radius;
-  if (sizeCategory.includes('Large')) radius = 10;
-  else if (sizeCategory.includes('Medium')) radius = 7;
-  else radius = 5;
+  let radius = 5;
+  if(sizeCategory?.toLowerCase().includes('large')) radius = 10;
+  else if(sizeCategory?.toLowerCase().includes('medium')) radius = 7;
 
   return L.divIcon({
-    html: `<div style="background:${color}; width:${radius*2}px; height:${radius*2}px; border-radius:50%; border:2px solid white;"></div>`,
-    className: ''
+    html:`<div style="background:${color}; width:${radius*2}px; height:${radius*2}px; border-radius:50%; border:2px solid white;"></div>`,
+    className:''
   });
 }
 
-// 📥 CSV'yi yükle ama markerları hemen çizme
+// CSV yükle
 Papa.parse(csvUrl, {
   download: true,
   header: true,
-  dynamicTyping: true,
+  skipEmptyLines: true,
   complete: function(results) {
     allData = results.data.filter(d => d.x_Coordinate && d.y_Coordinate);
 
-    // Dropdown'a teknoloji türlerini ekle
+    // Dropdown doldur
     const techSet = new Set(allData.map(d => d.PrimaryTechnology).filter(Boolean));
     const techFilter = document.getElementById('techFilter');
     techSet.forEach(t => {
@@ -94,38 +91,33 @@ Papa.parse(csvUrl, {
   }
 });
 
-// 🧭 Filtreli marker çizimi
+// Marker göster
 function showMarkers(filterTech) {
   markers.clearLayers();
   const filtered = allData.filter(d => d.PrimaryTechnology === filterTech);
 
   filtered.forEach(d => {
-    const [lon, lat] = proj4('OSGB36', 'WGS84', [d.x_Coordinate, d.y_Coordinate]);
-    const icon = createCustomIcon(d.StatusDetail || d.Status, d.SizeCategory || '');
-    const marker = L.marker([lat, lon], { icon });
-    marker.bindPopup(
-      `<b>${d.Name || '(No Name)'}</b><br/>
-       Tech: ${d.PrimaryTechnology}<br/>
-       Status: ${d.StatusDetail}<br/>
-       Size: ${d.SizeCategory}`
-    );
+    const [lon, lat] = proj4('OSGB36','WGS84',[parseFloat(d.x_Coordinate), parseFloat(d.y_Coordinate)]);
+    const icon = createCustomIcon(d.StatusDetail || d.Status, d.SizeCategory);
+    const marker = L.marker([lat, lon], {icon});
+    marker.bindPopup(`
+      <b>${d.Name || '(No Name)'}</b><br/>
+      Tech: ${d.PrimaryTechnology}<br/>
+      Status: ${d.StatusDetail}<br/>
+      Size: ${d.SizeCategory}
+    `);
     markers.addLayer(marker);
   });
 
   map.addLayer(markers);
-  if (filtered.length > 0) {
-    map.fitBounds(markers.getBounds());
-  }
+  if(filtered.length>0) map.fitBounds(markers.getBounds());
 }
 
-// 🚀 "Load Map" butonu
+// Load Map butonu
 document.getElementById('loadBtn').addEventListener('click', () => {
   const tech = document.getElementById('techFilter').value;
-  if (tech) {
-    showMarkers(tech);
-  } else {
-    alert('Lütfen önce bir teknoloji seçin.');
-  }
+  if(tech) showMarkers(tech);
+  else alert('Lütfen önce bir teknoloji seçin.');
 });
 </script>
 
