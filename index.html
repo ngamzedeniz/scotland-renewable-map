@@ -4,12 +4,134 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scotland Renewable Energy Map</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+        #map { height: 100vh; }
+        .filter-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+        }
+        .filter-panel select {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+    </style>
 </head>
 <body>
-    <h1>Scotland Renewable Energy Map</h1>
+    <div class="filter-panel">
+        <h4>Filter Projects</h4>
+        <label for="tech-filter">Technology</label>
+        <select id="tech-filter">
+            <option value="">All</option>
+            <option value="Wind">Wind</option>
+            <option value="Biomass">Biomass</option>
+            <option value="Hydro">Hydro</option>
+            <option value="Solar">Solar</option>
+        </select>
+        <label for="status-filter">Status</label>
+        <select id="status-filter">
+            <option value="">All</option>
+            <option value="Operational">Operational</option>
+            <option value="In Development">In Development</option>
+            <option value="Awaiting Construction">Awaiting Construction</option>
+        </select>
+        <label for="capacity-filter">Min Capacity (MW)</label>
+        <input type="number" id="capacity-filter" min="0" value="0" />
+    </div>
     <div id="map"></div>
-    <script src="script.js"></script>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map').setView([56.4907, -4.2026], 7);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+        const data = [
+            {
+                name: "Wind Farm A",
+                technology: "Wind",
+                status: "Operational",
+                capacity: 100,
+                coordinates: [57.1, -4.2]
+            },
+            {
+                name: "Biomass Plant B",
+                technology: "Biomass",
+                status: "In Development",
+                capacity: 50,
+                coordinates: [56.5, -4.5]
+            },
+            {
+                name: "Hydro Station C",
+                technology: "Hydro",
+                status: "Operational",
+                capacity: 30,
+                coordinates: [56.8, -4.3]
+            },
+            {
+                name: "Solar Array D",
+                technology: "Solar",
+                status: "Awaiting Construction",
+                capacity: 20,
+                coordinates: [57.2, -4.4]
+            }
+        ];
+
+        function filterData() {
+            const techFilter = document.getElementById('tech-filter').value;
+            const statusFilter = document.getElementById('status-filter').value;
+            const capacityFilter = parseInt(document.getElementById('capacity-filter').value);
+
+            return data.filter(item => {
+                return (!techFilter || item.technology === techFilter) &&
+                       (!statusFilter || item.status === statusFilter) &&
+                       item.capacity >= capacityFilter;
+            });
+        }
+
+        function updateMap() {
+            const filteredData = filterData();
+            filteredData.forEach(item => {
+                L.marker(item.coordinates)
+                    .addTo(map)
+                    .bindPopup(`<b>${item.name}</b><br>Technology: ${item.technology}<br>Status: ${item.status}<br>Capacity: ${item.capacity} MW`);
+            });
+        }
+
+        document.getElementById('tech-filter').addEventListener('change', () => {
+            map.eachLayer(layer => {
+                if (layer instanceof L.Marker) {
+                    map.removeLayer(layer);
+                }
+            });
+            updateMap();
+        });
+
+        document.getElementById('status-filter').addEventListener('change', () => {
+            map.eachLayer(layer => {
+                if (layer instanceof L.Marker) {
+                    map.removeLayer(layer);
+                }
+            });
+            updateMap();
+        });
+
+        document.getElementById('capacity-filter').addEventListener('input', () => {
+            map.eachLayer(layer => {
+                if (layer instanceof L.Marker) {
+                    map.removeLayer(layer);
+                }
+            });
+            updateMap();
+        });
+
+        updateMap();
+    </script>
 </body>
 </html>
